@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace Algorithm.ZipLineClustering
@@ -33,7 +33,7 @@ namespace Algorithm.ZipLineClustering
             private set { this.m_maxTokenId = value; }
         }
 
-        [JsonProperty]
+        [JsonInclude]
         protected Dictionary<string, Token> TextToToken
         {
             get { return this.m_textToToken; }

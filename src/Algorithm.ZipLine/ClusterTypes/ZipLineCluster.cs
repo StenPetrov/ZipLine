@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 using Algorithm.Statistics;
 
 namespace Algorithm.ZipLineClustering.ClusterTypes
@@ -10,7 +10,8 @@ namespace Algorithm.ZipLineClustering.ClusterTypes
     [DebuggerDisplay("[Cluster[{Items.Count}]: {LastItem.Content}")]
     public class ZipLineCluster : ClusterBase
     {
-        [JsonProperty(Order = 999)]
+        [JsonInclude]
+        [JsonPropertyOrder(999)]
         public TokenZipNode TokenZipRoot { get; private set; }
 
         [JsonIgnore]
@@ -190,11 +191,14 @@ namespace Algorithm.ZipLineClustering.ClusterTypes
         public const int WildcardId = -7;
         public const int RootId = -99;
 
-        [JsonProperty("t")]
+        [JsonInclude]
+        [JsonPropertyName("t")]
         public int TokenId { get; private set; }
 
 #if DEBUG
-        [JsonProperty("txt", DefaultValueHandling = DefaultValueHandling.Ignore)]
+    [JsonInclude]
+    [JsonPropertyName("txt")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         private string Text
         {
             get
@@ -216,7 +220,9 @@ namespace Algorithm.ZipLineClustering.ClusterTypes
         }
 
 #endif
-        [JsonProperty("e", DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [JsonInclude]
+        [JsonPropertyName("e")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         private int? EncountersSerialized
         {
             get { return this.Encounters > 1 ? this.Encounters : (int?)null; }
@@ -226,7 +232,9 @@ namespace Algorithm.ZipLineClustering.ClusterTypes
         [JsonIgnore]
         public int Encounters { get; set; } = 1;
 
-        [JsonProperty("w", DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [JsonInclude]
+        [JsonPropertyName("w")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         private float? TokenWeightSerialized
         {
             get { return Math.Abs(1 - this.TokenWeight) > 0.0001 ? this.TokenWeight : (float?)null; }
@@ -238,7 +246,10 @@ namespace Algorithm.ZipLineClustering.ClusterTypes
 
         private List<TokenZipNode> m_childNodes = new List<TokenZipNode>();
 
-        [JsonProperty("c", Order = 99, DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [JsonInclude]
+        [JsonPropertyName("c")]
+        [JsonPropertyOrder(99)]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         private List<TokenZipNode> ChildNodesSerialized //TODO: internal serialization to string, similar to the DebuggerDisplay for improved space management
         {
             get { return (this.m_childNodes?.Any() == true) ? this.m_childNodes : null; }

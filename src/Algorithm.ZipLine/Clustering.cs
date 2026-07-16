@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Algorithm.ZipLineClustering.ClusterTypes;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace Algorithm.ZipLineClustering
 {
@@ -35,11 +35,11 @@ namespace Algorithm.ZipLineClustering
         // when deserialized from JSON this flag is set to true and causes init method to do work
         private bool m_pendingInit = false;
 
-        [JsonProperty]
+        [JsonInclude]
         public ClusteringConfig Config { get; private set; }
 
         private List<ClusterBase> m_clusters = new List<ClusterBase>();
-        [JsonProperty(TypeNameHandling = TypeNameHandling.Arrays)]
+        [JsonInclude]
         public List<ClusterBase> Clusters
         {
             get { return this.m_clusters; }
@@ -54,7 +54,7 @@ namespace Algorithm.ZipLineClustering
         public int ClusterCount => this.Clusters.Count;
 
         private ClusteringVocabulary m_vocabulary;
-        [JsonProperty]
+        [JsonInclude]
         public ClusteringVocabulary Vocabulary
         {
             get { return this.m_vocabulary; }

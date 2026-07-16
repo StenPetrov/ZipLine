@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace Algorithm.ZipLineClustering
 {
@@ -19,7 +19,7 @@ namespace Algorithm.ZipLineClustering
               return new Regex(regexPattern, (ignoreCase ? RegexOptions.IgnoreCase : RegexOptions.None));
           };
 
-        [JsonProperty]
+        [JsonInclude]
         public string LexerRegex { get; set; } = StandardLexerRegex;
 
         private Regex m_tokensRegex = null;

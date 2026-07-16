@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace Algorithm.ZipLineClustering
 {
@@ -12,11 +12,12 @@ namespace Algorithm.ZipLineClustering
     {
         private bool m_initPending = false;
 
-        [JsonProperty]
+        [JsonInclude]
         public string Id { get; protected set; }
 
         private List<int> m_tokenIDs;
-        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [JsonInclude]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         protected List<int> TokenIDs // used to persist the token IDs cheaper than serializing the TokenIndex.
         {
             get { return this.m_tokenIDs; }
@@ -38,7 +39,9 @@ namespace Algorithm.ZipLineClustering
         [JsonIgnore]
         public bool PreserveHash { get; set; } = true;
 
-        [JsonProperty("Hash", DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [JsonInclude]
+        [JsonPropertyName("Hash")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         private string PreservedHash
         {
             get

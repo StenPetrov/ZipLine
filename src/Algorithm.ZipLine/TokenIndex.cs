@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace Algorithm.ZipLineClustering
 {
@@ -21,7 +21,7 @@ namespace Algorithm.ZipLineClustering
         [JsonIgnore]
         public float Weight { get; set; }
 
-        [JsonProperty] // serializes in a compact manner
+        [JsonInclude] // serializes in a compact manner
         protected string Val
         {
             get
@@ -43,6 +43,11 @@ namespace Algorithm.ZipLineClustering
         }
 
         internal string Text { get; private set; }
+
+        [JsonConstructor]
+        protected Token()
+        {
+        }
 
         public Token(int id, string text, float weight = 1.0f)
         {
@@ -208,7 +213,7 @@ namespace Algorithm.ZipLineClustering
 
     public class ClusterTokenIndex : TokenIndexBase
     {
-        [JsonProperty]
+        [JsonInclude]
         protected List<Dictionary<int, CountedValue<Token>>> TokenParts { get; private set; }
 
         [JsonIgnore]
@@ -217,6 +222,7 @@ namespace Algorithm.ZipLineClustering
         [JsonIgnore]
         public int PartsCount => this.TokenParts.Count;
 
+        [JsonConstructor]
         protected ClusterTokenIndex()
         {
             this.TokenParts = new List<Dictionary<int, CountedValue<Token>>>();

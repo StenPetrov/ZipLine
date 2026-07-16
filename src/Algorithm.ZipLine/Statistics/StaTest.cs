@@ -141,15 +141,14 @@ namespace Algorithm.Statistics
 
         public static double GetPValueFromZ(double zValue)
         {
-            int zTableIndex = (int)Math.Abs(zValue) * 20; // 20 values per 1Z. the step is 0.05
-            if (zTableIndex >= ZTable.GetLength(0) - 1)
+            double absoluteZValue = Math.Abs(zValue);
+            if (double.IsNaN(absoluteZValue) || double.IsInfinity(absoluteZValue) || absoluteZValue >= ZTable[ZTable.GetLength(0) - 1, 0])
             {
                 return 0.999;
             }
-            else
-            {
-                return ZTable[zTableIndex, 1];
-            }
+
+            int zTableIndex = (int)(absoluteZValue * 20); // 20 values per 1Z. the step is 0.05
+            return ZTable[zTableIndex, 1];
         }
 
         // Determines the range of the confidence interval (CI), centered around the mean via T-test

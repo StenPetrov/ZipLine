@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Algorithm.ZipLineClustering.ClusterTypes;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 using Algorithm.Statistics;
 using static Algorithm.Statistics.StaTest;
 using System.Diagnostics;
@@ -12,27 +12,32 @@ namespace Algorithm.ZipLineClustering
     /// <summary>
     /// Provides a base class for all clustering algorithms
     /// </summary>
+    [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+    [JsonDerivedType(typeof(ZipLineCluster), "ZipLineCluster")]
     public abstract class ClusterBase
     {
-        [JsonProperty]
+        [JsonInclude]
         public Guid ClId { get; protected set; } = Guid.NewGuid();
 
-        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [JsonInclude]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public Guid? SplitFromClusterId { get; protected set; }
 
         [JsonIgnore]
         public ClusteringConfig Config { get; set; }
 
-        [JsonProperty]
+        [JsonInclude]
         public RunningStat StatsTextLength { get; private set; } = new RunningStat();
 
-        [JsonProperty]
+        [JsonInclude]
         public RunningStat StatsTokenCount { get; private set; } = new RunningStat();
 
-        [JsonProperty]
+        [JsonInclude]
         public RunningStat StatsAffinity { get; private set; } = new RunningStat();
 
-        [JsonProperty("Items", Order = 99)]
+        [JsonInclude]
+        [JsonPropertyName("Items")]
+        [JsonPropertyOrder(99)]
         public Dictionary<string, ClusterItem> Items { get; private set; } = new Dictionary<string, ClusterItem>();
 
         [JsonIgnore]

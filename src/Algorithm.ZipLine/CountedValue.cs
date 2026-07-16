@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace Algorithm.ZipLineClustering
 {
@@ -12,10 +12,12 @@ namespace Algorithm.ZipLineClustering
     /// </summary> 
     public class CountedValue<T>
     {
-        [JsonProperty("c")]
+        [JsonInclude]
+        [JsonPropertyName("c")]
         public int Count { get; set; }
 
-        [JsonProperty("v", ReferenceLoopHandling = ReferenceLoopHandling.Serialize)]
+        [JsonInclude]
+        [JsonPropertyName("v")]
         public T Value { get; private set; }
 
         [JsonConstructor]
