@@ -40,18 +40,24 @@ namespace Algorithm.ZipLineClustering.ClusterTypes
         /// </summary>
         protected override float OnGetAffinity(ClusterItem item, float minAffinity)
         {
-            Tuple<float, float> matchingAndTotalWeight = CalculateAffinity(item, this.TokenZipRoot, this.Config, this.Items.Count);
-            return matchingAndTotalWeight.Item1 / matchingAndTotalWeight.Item2;
+            (float matchingWeight, float totalWeight) = CalculateAffinityCore(item, this.TokenZipRoot, this.Config, this.Items.Count);
+            return matchingWeight / totalWeight;
         }
 
         protected Tuple<float, float> CalculateAffinity(ClusterItem item, TokenZipNode rootZipNode, ClusteringConfig config, int itemsCount)
+        {
+            (float matchingWeight, float totalWeight) = CalculateAffinityCore(item, rootZipNode, config, itemsCount);
+            return new Tuple<float, float>(matchingWeight, totalWeight);
+        }
+
+        private (float MatchingWeight, float TotalWeight) CalculateAffinityCore(ClusterItem item, TokenZipNode rootZipNode, ClusteringConfig config, int itemsCount)
         {
             Dictionary<int, int[]> itemTokenPlaceMap = item.GetTokenPlacesMap();
             Debug.Assert(itemTokenPlaceMap != null);
 
             int encounterThreshold = (int)Math.Floor(itemsCount * config.MinClusterAffinity * config.MinClusterAffinity);
             var itemTokensFound = new HashSet<int>();
-            Tuple<float, float> matchingAndTotalWeight = CalculateAffinity(0, itemTokenPlaceMap, rootZipNode, itemsCount, encounterThreshold, null, ref itemTokensFound);
+            (float matchingWeight, float totalWeight) = CalculateAffinityCore(0, itemTokenPlaceMap, rootZipNode, itemsCount, encounterThreshold, null, ref itemTokensFound);
 
             float foundWeight = 0.0f, notFoundWeight = 0.0f;
             int seqIndex = 1;
@@ -67,12 +73,18 @@ namespace Algorithm.ZipLineClustering.ClusterTypes
                     notFoundWeight += (float)(1 * Math.Pow(seqIndex++, 1.25));
                 }
             }
-            return new Tuple<float, float>(matchingAndTotalWeight.Item1 + foundWeight, matchingAndTotalWeight.Item2 + foundWeight + notFoundWeight);
+            return (matchingWeight + foundWeight, totalWeight + foundWeight + notFoundWeight);
         }
 
         protected Tuple<float, float> CalculateAffinity(int distanceToRoot, Dictionary<int, int[]> itemTokenPlaceMap, TokenZipNode tokenNode, int itemsCount, int encounterThreshold, HashSet<int> potentialPlaces, ref HashSet<int> itemTokensFound)
         {
-            bool zipNodeMatches = (potentialPlaces?.Any() != false);
+            (float matchingWeight, float totalWeight) = CalculateAffinityCore(distanceToRoot, itemTokenPlaceMap, tokenNode, itemsCount, encounterThreshold, potentialPlaces, ref itemTokensFound);
+            return new Tuple<float, float>(matchingWeight, totalWeight);
+        }
+
+        private (float MatchingWeight, float TotalWeight) CalculateAffinityCore(int distanceToRoot, Dictionary<int, int[]> itemTokenPlaceMap, TokenZipNode tokenNode, int itemsCount, int encounterThreshold, HashSet<int> potentialPlaces, ref HashSet<int> itemTokensFound)
+        {
+            bool zipNodeMatches = potentialPlaces == null || potentialPlaces.Count > 0;
             if (zipNodeMatches && tokenNode.TokenId >= 0) itemTokensFound.Add(tokenNode.TokenId);
 
             float heightBonus = (float)Math.Log(distanceToRoot + 1);
@@ -84,11 +96,11 @@ namespace Algorithm.ZipLineClustering.ClusterTypes
                 {
                     // a complete matching chain gets emphasized by multiplying by its heigh
                     tzWeight *= heightBonus; // added bonus for reaching the top
-                    return new Tuple<float, float>(tzWeight, tzWeight);
+                    return (tzWeight, tzWeight);
                 }
                 else
                 {
-                    return new Tuple<float, float>(0, tzWeight);
+                    return (0, tzWeight);
                 }
             }
             else
@@ -124,41 +136,41 @@ namespace Algorithm.ZipLineClustering.ClusterTypes
                     HashSet<int> nextPotentialPlaces = null;
                     if (!startTokenFound)
                     {
-                        if (nextPotentialPlaces == null) nextPotentialPlaces = new HashSet<int>();
+                        nextPotentialPlaces = TokenZipNode.EmptyPotentialPlaces;
                     }
                     else
                     {
                         if (tokenPlaceMap != null)
                         {
                             // if there are potential places for next tokens - take them into account
-                            nextPotentialPlaces = potentialPlaces?.Any() == true
-                                ? new HashSet<int>(potentialPlaces.Intersect(tokenPlaceMap.Select(t => t - distanceToRoot)))
+                            nextPotentialPlaces = potentialPlaces != null && potentialPlaces.Count > 0
+                                ? TokenZipNode.GetMatchingPotentialPlaces(potentialPlaces, tokenPlaceMap, distanceToRoot)
                                 : new HashSet<int>(tokenPlaceMap);
                         }
                     }
 
-                    Tuple<float, float> nodeAffinity = CalculateAffinity(distanceToRoot + 1, itemTokenPlaceMap, tzTreeChild, itemsCount, encounterThreshold, nextPotentialPlaces, ref itemTokensFound);
+                    (float childMatchingWeight, float childTotalWeight) = CalculateAffinityCore(distanceToRoot + 1, itemTokenPlaceMap, tzTreeChild, itemsCount, encounterThreshold, nextPotentialPlaces, ref itemTokensFound);
 
                     if (tzTreeChild.Encounters + tzTreeChild.DistanceToRoot >= encounterThreshold)
                     {
-                        if (nextPotentialPlaces?.Any() == true || tzTreeChild.TokenId == TokenZipNode.WildcardId)
-                            matchingWeight += nodeAffinity.Item1;
-                        totalWeight += nodeAffinity.Item2;
+                        if ((nextPotentialPlaces != null && nextPotentialPlaces.Count > 0) || tzTreeChild.TokenId == TokenZipNode.WildcardId)
+                            matchingWeight += childMatchingWeight;
+                        totalWeight += childTotalWeight;
                     }
                 }
 
                 if (matchingWeight > 0)
                 {
-                    return new Tuple<float, float>(matchingWeight + tzWeight, totalWeight + tzWeight);
+                    return (matchingWeight + tzWeight, totalWeight + tzWeight);
                 }
                 else if (tokenNode.Encounters + distanceToRoot >= encounterThreshold)
                 {
                     tzWeight *= heightBonus;
-                    return new Tuple<float, float>(tzWeight, totalWeight + tzWeight);
+                    return (tzWeight, totalWeight + tzWeight);
                 }
                 else
                 {
-                    return new Tuple<float, float>(0, 0);
+                    return (0, 0);
                 }
 
             }
@@ -190,6 +202,8 @@ namespace Algorithm.ZipLineClustering.ClusterTypes
     {
         public const int WildcardId = -7;
         public const int RootId = -99;
+
+        internal static readonly HashSet<int> EmptyPotentialPlaces = new HashSet<int>();
 
         [JsonInclude]
         [JsonPropertyName("t")]
@@ -392,6 +406,21 @@ namespace Algorithm.ZipLineClustering.ClusterTypes
             this.TokenId = tokenId;
             this.TokenWeight = tokenWeight;
             this.Parent = parent;
+        }
+
+        internal static HashSet<int> GetMatchingPotentialPlaces(HashSet<int> potentialPlaces, int[] tokenPlaces, int distanceToRoot)
+        {
+            var matchingPlaces = new HashSet<int>(Math.Min(potentialPlaces.Count, tokenPlaces.Length));
+            for (int index = 0; index < tokenPlaces.Length; index++)
+            {
+                int chainStart = tokenPlaces[index] - distanceToRoot;
+                if (potentialPlaces.Contains(chainStart))
+                {
+                    matchingPlaces.Add(chainStart);
+                }
+            }
+
+            return matchingPlaces;
         }
 
         // important: the returned enumeration preserves the order of nodes

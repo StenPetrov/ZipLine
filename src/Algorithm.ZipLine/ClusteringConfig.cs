@@ -83,7 +83,7 @@ namespace Algorithm.ZipLineClustering
         /// <summary>
         /// Enable/disable debug logging
         /// </summary>
-        public bool LogDebug { get; internal set; } = true;
+        public bool LogDebug { get; set; } = true;
 
         internal Action<string> logHook = (s) => System.Diagnostics.Debug.WriteLine($" [FS]: {s}");
 

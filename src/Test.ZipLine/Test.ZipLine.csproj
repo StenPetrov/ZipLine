@@ -14,4 +14,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Algorithm.ZipLine\Algorithm.ZipLine.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Update="SampleData\otel-demo-logs.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>
