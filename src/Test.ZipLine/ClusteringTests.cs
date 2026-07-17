@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
 using Algorithm.ZipLineClustering;
+using Algorithm.ZipLineClustering.ClusterTypes;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NLipsum.Core;
 
@@ -90,6 +91,25 @@ namespace Test.ZipLine
         }
 
         [TestMethod]
+        public void OrderedTokenSequenceHasHigherAffinityThanReorderedSequence()
+        {
+            var config = new ClusteringConfig { MinClusterAffinity = 0.85f };
+            var vocabulary = new ClusteringVocabulary(config);
+            const string orderedContent = "alpha beta gamma delta epsilon zeta eta theta";
+            var orderedItem = new ClusterItem("ordered", orderedContent, vocabulary);
+            var reorderedItem = new ClusterItem("reordered", "alpha gamma beta delta epsilon zeta eta theta", vocabulary);
+            TokenZipNode root = JsonSerializer.Deserialize<TokenZipNode>(CreateZipChainJson(orderedItem.TokenIndex.Tokens.Select(token => token.Id)));
+            var cluster = new ZipLineClusterProbe(config);
+
+            Assert.IsNotNull(root);
+
+            float orderedAffinity = cluster.GetZipAffinity(orderedItem, root);
+            float reorderedAffinity = cluster.GetZipAffinity(reorderedItem, root);
+
+            Assert.IsGreaterThan(reorderedAffinity, orderedAffinity);
+        }
+
+        [TestMethod]
         public void GeneratedHttpLogsClusterByMessageTemplate()
         {
             const int entriesPerTemplate = 40;
@@ -134,6 +154,54 @@ namespace Test.ZipLine
             AssertTemplateClusters(clustering, entriesPerTemplate * 2, 2);
         }
 
+        [TestMethod]
+        public void AdversarialCriticalActionTokensKeepNearIdenticalLogsSeparate()
+        {
+            const int entriesPerTemplate = 30;
+            Clustering clustering = CreateClusteringEngine(new Dictionary<string, float>
+            {
+                { "granted|revoked", 10 }
+            });
+
+            for (int index = 0; index < entriesPerTemplate; index++)
+            {
+                clustering.AddItem($"grant-{index}", $"INFO authorization permission granted principal user-{index} role billing_admin tenant tenant-{index % 5} request auth-{index:X8}");
+                clustering.AddItem($"revoke-{index}", $"INFO authorization permission revoked principal user-{index} role billing_admin tenant tenant-{index % 5} request auth-{index:X8}");
+            }
+
+            AssertTemplateClusters(clustering, entriesPerTemplate * 2, 2);
+        }
+
+        [TestMethod]
+        public void AdversarialReorderedFieldsCanMergeTemplates()
+        {
+            const int entriesPerTemplate = 30;
+            Clustering clustering = CreateClusteringEngine();
+
+            for (int index = 0; index < entriesPerTemplate; index++)
+            {
+                clustering.AddItem($"forward-{index}", $"INFO worker task started queue invoices priority high tenant tenant-{index % 4} request job-{index:X8}");
+                clustering.AddItem($"reordered-{index}", $"INFO worker task started priority high queue invoices tenant tenant-{index % 4} request job-{index:X8}");
+            }
+
+            AssertTemplateMixing(clustering, entriesPerTemplate * 2);
+        }
+
+        [TestMethod]
+        public void AdversarialTerseTemplatesWithSharedVocabularyCanMix()
+        {
+            const int entriesPerTemplate = 30;
+            Clustering clustering = CreateClusteringEngine();
+
+            for (int index = 0; index < entriesPerTemplate; index++)
+            {
+                clustering.AddItem($"created-{index}", $"WARN cache entry created key item-{index:X8} region east");
+                clustering.AddItem($"expired-{index}", $"WARN cache entry expired key item-{index:X8} region east");
+            }
+
+            AssertTemplateMixing(clustering, entriesPerTemplate * 2);
+        }
+
         private static string CreateHttpLog(int index)
         {
             return $"2026-07-16T10:{index % 60:D2}:00Z INFO gateway request completed method GET route /orders/{100000 + index} status 200 duration {20 + index % 180}ms request req-{index:X8} user user-{index % 17} ip 10.42.{index % 255}.{(index * 7) % 255}";
@@ -166,12 +234,46 @@ namespace Test.ZipLine
             }
         }
 
-        private static Clustering CreateClusteringEngine()
+        private static void AssertTemplateMixing(Clustering clustering, int expectedItemCount)
+        {
+            List<List<string>> clusters = clustering.GetClustersItemIds();
+
+            Assert.AreEqual(expectedItemCount, clusters.Sum(cluster => cluster.Count));
+            Assert.IsTrue(clusters.Any(cluster => cluster.Select(id => id.Split('-').First()).Distinct().Count() > 1));
+        }
+
+        private static string CreateZipChainJson(IEnumerable<int> tokenIds)
+        {
+            string nodeJson = null;
+            foreach (int tokenId in tokenIds.Reverse())
+            {
+                nodeJson = nodeJson == null
+                    ? $"{{\"t\":{tokenId}}}"
+                    : $"{{\"t\":{tokenId},\"c\":[{nodeJson}]}}";
+            }
+
+            return $"{{\"t\":{TokenZipNode.WildcardId},\"c\":[{nodeJson}]}}";
+        }
+
+        private sealed class ZipLineClusterProbe : ZipLineCluster
+        {
+            public ZipLineClusterProbe(ClusteringConfig config) : base(config)
+            {
+            }
+
+            public float GetZipAffinity(ClusterItem item, TokenZipNode root)
+            {
+                Tuple<float, float> matchingAndTotalWeight = this.CalculateAffinity(item, root, this.Config, 1);
+                return matchingAndTotalWeight.Item1 / matchingAndTotalWeight.Item2;
+            }
+        }
+
+        private static Clustering CreateClusteringEngine(Dictionary<string, float> weightedTokens = null)
         {
             var config = new ClusteringConfig
             {
                 MinClusterAffinity = 0.85f,
-                WeightedTokens = new Dictionary<string, float>
+                WeightedTokens = weightedTokens ?? new Dictionary<string, float>
                 {
                     {"Important Fragment Regex Here", 10}
                 }

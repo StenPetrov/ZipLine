@@ -132,7 +132,7 @@ namespace Algorithm.ZipLineClustering.ClusterTypes
                         {
                             // if there are potential places for next tokens - take them into account
                             nextPotentialPlaces = potentialPlaces?.Any() == true
-                                ? new HashSet<int>(potentialPlaces.Except(tokenPlaceMap.Select(t => t + distanceToRoot)))
+                                ? new HashSet<int>(potentialPlaces.Intersect(tokenPlaceMap.Select(t => t - distanceToRoot)))
                                 : new HashSet<int>(tokenPlaceMap);
                         }
                     }
